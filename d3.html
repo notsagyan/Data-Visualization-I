@@ -1,0 +1,161 @@
+<html>
+   <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.js" integrity="sha512-NmSTfudjn1FCaFMQ+f4xveBmwRJn5ep8Wu+YOeq+CeExhFtKvwhfKVXFX3tGxoGWxu8Fl83qm9nE8/Hkc1dWZg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <style>
+            body div {
+                background-image: url("bg.jpeg");
+                width: 100vw;
+                height: 100vh;
+            }
+        </style>
+    </head>
+
+   <body>
+        <div>
+            <svg height="5000" width="1000"></svg>
+        </div>
+        <script>
+            const cleanData = (data) => {
+                result = {};
+                data.forEach((item) => {
+                    if (item.Entity in result){
+                        result[item.Entity]["shareholders"].push({
+                            name: item.Shareholder,
+                            percent: parseFloat(item.Percentage.replace("%",""))
+                        });
+                    }
+                    else {
+                        result[item.Entity] = {
+                            entity: item.Entity,
+                            shareholders: [
+                                {
+                                    name: item.Shareholder,
+                                    percent: parseFloat(item.Percentage.replace("%", ""))
+                                }
+                            ]
+                        }
+                    }
+                });
+
+                console.log(result);
+                var arr = [];
+                for (var key in result){
+                    arr.push(result[key]);
+                }
+                return arr;
+            }
+
+            const renderDetail = (data, clear=false) => {
+                if (clear){
+
+                }
+                else {
+                    var shareholders = [];
+                    var shares = [];
+
+                    for (var key in data.shareholders){
+                        shareholders.push(key);
+                        shares.push(data.shareholders[key]);
+                    }
+
+                    let main = d3.select("svg")
+                                    .append("g")
+                                    .attr("class", "main")
+                                    .attr("transform", "translate(200, 100)");
+
+                    let backBtn = main.append("text")
+                                      .text("Back")
+                                      .attr("fill", "rgb(55,63,74)")
+                                      .attr("font-size", "16")
+                                      .attr("style", "font-family:-apple-system, BlinkMacSystemFont, sans-serif;");
+                    
+                    let name = main.append("text")
+                                   .text(data.entity)
+                                   .attr("x", 200)
+                                   .attr("fill", "rgb(55,63,74)")
+                                   .attr("font-size", "16")
+                                   .attr("style", "font-family:-apple-system, BlinkMacSystemFont, sans-serif;");
+
+                    let chart = main.append("g")
+                                    .attr("transform", "translate(20, 30)");
+
+                    let xScale = d3.scaleBand()
+                                   .domain(data.shareholders)
+                                   .range([0, 200]);
+
+                    let yScale = d3.scaleLinear()
+                                   .domain([0, 100])
+                                   .range([200, 0]);
+
+                    let xAxis = d3.axisBottom(xScale)
+                                  .tickFormat((d, i) => {
+                                    return d.name;
+                                  });
+
+                    let yAxis = d3.axisLeft(yScale);
+
+                    chart.append("g")
+                        .attr("transform", "translate(0, 200)")
+                        .call(xAxis);
+
+                    chart.append("g")
+                        .call(yAxis);
+
+                    chart.selectAll(".bar")
+                         .data(data.shareholders)
+                         .join("rect")
+                         .attr("class", "bar")
+                         .attr("height", (d, i) => 200-yScale(d.percent))
+                         .attr("width", (d, i) => 50)
+                         .attr("x", (d, i) => xScale(d)+25)
+                         .attr("y", (d, i) => 200-(200-yScale(d.percent)));
+                }
+            }
+
+            const renderList = (data) => {
+                var entity = d3.select("svg")
+                            .selectAll("g")
+                            .data(data)
+                            .join((enter) => {
+                                let g = enter.append("g");
+
+                                g.attr("transform", (d, i) => {
+                                    let x = 100;
+                                    let y = i === 0 ? 50 : i*50;
+                                    return `translate(${x}, ${y})`;
+                                })
+                                .attr("height", 150);
+
+                                g.on("click", (e, d) => {
+                                    renderList([]);
+                                    renderDetail(d);
+                                });
+
+                                g.append("rect")
+                                .attr("width", (d, i) => `${(d.entity).length*8.9 + 5}`)
+                                .attr("height", 40)
+                                .attr("rx", 5)
+                                .attr("ry", 5)
+                                .attr("style", "fill: white; stroke: rgb(222,222,222);");
+
+                                g.append("text")
+                                .text((d, i) => d.entity)
+                                .attr("fill", "rgb(55,63,74)")
+                                .attr("x", 5)
+                                .attr("y", 25)
+                                .attr("font-size", "16")
+                                .attr("style", "font-family:-apple-system, BlinkMacSystemFont, sans-serif;");
+
+                                return g;
+                            });
+            }
+
+            d3.csv("http://localhost:3000/data.csv")
+               .then((data) => {
+                    result = cleanData(data);
+                    renderList(result);
+            });
+        </script>
+   </body>
+</html>
